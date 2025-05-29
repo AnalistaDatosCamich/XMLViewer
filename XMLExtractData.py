@@ -15,16 +15,27 @@ def extract_xml_data(xml_path):
             'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'
         }
 
-        stamp = root.find('.//cfdi:Complemento/tfd:TimbreFiscalDigital', ns)
-        invoice_attributes = [
-            "Serie", "Folio", "Fecha", "Total", "Sello", "NoCertificado",
+        timbrado = root.find('.//cfdi:Complemento/tfd:TimbreFiscalDigital', ns)
+        emisor = root.find('.//cfdi:Emisor', ns)
+        receptor = root.find('.//cfdi:Receptor', ns)
+        comprobante_attr = [
+            "Version", "Serie", "Folio", "Fecha", "Total", "Sello", "NoCertificado",
             "FormaPago", "Certificado", "CondicionesDePago", "SubTotal",
             "Descuento", "Moneda", "Total", "TipoDeComprobante",
-            "MetodoPago", "LugarExpedicion"
+            "MetodoPago", "LugarExpedicion", "Exportacion"
         ]
+        timbrado_attr = [ "UUID", "FechaTimbrado", "RfcProvCertif", "SelloCFD", "NoCertificadoSAT", "SelloSAT"]
+        emisor_attr = ["Nombre", "Rfc", "RegimenFiscal"]
+        receptor_attr = ["Nombre", "Rfc", "RegimenFiscalReceptor", "DomicilioFiscalReceptor", "UsoCFDI"]
 
-        data = {attr: root.get(attr, None) for attr in invoice_attributes}
-        data["UUID"] = stamp.get('UUID', None) if stamp is not None else None
+        data = {attr: root.get(attr, None) for attr in comprobante_attr}
+        data.update({attr: timbrado.get(attr, None) for attr in timbrado_attr})
+        data.update({attr: emisor.get(attr, None) for attr in emisor_attr})
+        data["RFCEmisor"] = data.pop("Rfc")
+        data["NombreEmisor"] = data.pop("Nombre")
+        data.update({attr: receptor.get(attr, None) for attr in receptor_attr})
+        data["RFCReceptor"] = data.pop("Rfc")
+        data["NombreReceptor"] = data.pop("Nombre")
 
         return data
 
@@ -118,10 +129,10 @@ def process_xml_folder(folder_path, connection):
         data = extract_xml_data(file)
         if data is not None:
             all_data.append(data)
-            print(f"✅ {os.path.basename(file)}")
+            #print(f"✅ {os.path.basename(file)}")
         else:
             errors.append(file)
-            print(f"❌ {os.path.basename(file)}: Error during extraction")
+            #print(f"❌ {os.path.basename(file)}: Error during extraction")
 
     if not all_data:
         print("❌ No XML files could be processed")
@@ -154,14 +165,6 @@ def main():
         print("🔒 Database connection closed")
 
 
-# Example usage for testing a single XML file
-def test_single_xml():
-    data = extract_xml_data("C://Auxiliar Administración//Proyecto XML//testXML.xml")
-    print("Single XML test result:")
-    print(data)
-
 
 if __name__ == "__main__":
     main()
-    # Uncomment the line below to test with a single XML file
-    # test_single_xml()
