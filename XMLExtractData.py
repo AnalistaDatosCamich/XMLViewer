@@ -53,14 +53,6 @@ def infer_sqlite_type(value):
 
 
 def process_invoices_with_transaction(invoice_data, connection, clear_table=True):
-    """
-    Process invoices with a complete transaction
-
-    Args:
-        invoice_data: List of dictionaries with invoice data
-        connection: Database connection
-        clear_table: If True, clears the table before inserting
-    """
     cursor = connection.cursor()
     table_name = 'facturas'
 
