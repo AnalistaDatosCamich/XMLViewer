@@ -269,6 +269,12 @@ class XMLViewerApp(ctk.CTk):
             self.datos_actuales = list(rows)  # Copia de los datos completos
 
             # Insert data into treeview
+            self.tree.bind('<ButtonPress-1>', self.inicio_arrastre)
+            self.tree.bind('<B1-Motion>', self.durante_arrastre)
+            self.tree.bind('<ButtonRelease-1>', self.fin_arrastre)
+            self.tree.bind('<Control-c>', self.copiar_seleccion)
+            #self.tree.bind('<Control-a>', self.seleccionar_todo_filtrado)
+
             for row in rows:
                 self.tree.insert("", "end", values=row)
 
@@ -297,6 +303,74 @@ class XMLViewerApp(ctk.CTk):
 
         self.status_label.configure(text=f"{len(seleccionados)} filas copiadas")
 
+    def inicio_arrastre(self, event):
+        #Iniciar selección por arrastre"""
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "cell":  # Solo en celdas, no en headers
+            item = self.tree.identify_row(event.y)
+            if item:
+                self.drag_start = event.y
+                self.drag_start_item = item
+                self.dragging = False
+
+                # Si no hay Ctrl presionado, limpiar selección
+                if not (event.state & 0x4):  # Ctrl no presionado
+                    self.tree.selection_set(item)
+
+    def durante_arrastre(self, event):
+        #Durante el arrastre, seleccionar rango"""
+        if self.drag_start is None:
+            return
+
+        # Detectar si realmente estamos arrastrando
+        if abs(event.y - self.drag_start) > 3:
+            self.dragging = True
+
+            # Obtener item actual
+            current_item = self.tree.identify_row(event.y)
+            if not current_item:
+                return
+
+            # Obtener todos los items
+            all_items = self.tree.get_children()
+
+            try:
+                start_idx = all_items.index(self.drag_start_item)
+                current_idx = all_items.index(current_item)
+
+                # Determinar rango
+                min_idx = min(start_idx, current_idx)
+                max_idx = max(start_idx, current_idx)
+
+                # Limpiar selección previa si no hay Ctrl
+                if not (event.state & 0x4):
+                    self.tree.selection_set([])
+
+                # Seleccionar rango
+                for i in range(min_idx, max_idx + 1):
+                    self.tree.selection_add(all_items[i])
+
+            except ValueError:
+                pass  # Item no encontrado
+
+    def fin_arrastre(self, event):
+        """Finalizar arrastre"""
+        if not self.dragging and self.drag_start_item:
+            # Fue un clic simple, no arrastre
+            if not (event.state & 0x4):  # Sin Ctrl
+                self.tree.selection_set(self.drag_start_item)
+            else:  # Con Ctrl, toggle selección
+                if self.drag_start_item in self.tree.selection():
+                    self.tree.selection_remove(self.drag_start_item)
+                else:
+                    self.tree.selection_add(self.drag_start_item)
+
+        # Reset variables
+        self.drag_start = None
+        self.dragging = False
+        self.drag_start_item = None
+
+
     def seleccionar_todo(self):
         """Seleccionar todo sin filtros (método adicional)"""
         # Limpiar filtro temporalmente para mostrar todo
@@ -324,11 +398,11 @@ class XMLViewerApp(ctk.CTk):
             registros_filtrados = len(items)
 
             if registros_filtrados == total_registros:
-                self.status_label.configure(text=f"☑️ Todos los {registros_filtrados} registros seleccionados")
+                self.status_label.configure(text=f"Todos los {registros_filtrados} registros seleccionados")
             else:
-                self.status_label.configure(text=f"☑️ {registros_filtrados} registros filtrados seleccionados")
+                self.status_label.configure(text=f"{registros_filtrados} registros filtrados seleccionados")
         else:
-            self.status_label.configure(text="❌ No hay datos para seleccionar")
+            self.status_label.configure(text="No hay datos para seleccionar")
 
     def obtener_seleccionados(self):
         """Obtener filas seleccionadas"""
