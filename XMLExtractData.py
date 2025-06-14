@@ -18,18 +18,21 @@ def extract_xml_data(xml_path):
         timbrado = root.find('.//cfdi:Complemento/tfd:TimbreFiscalDigital', ns)
         emisor = root.find('.//cfdi:Emisor', ns)
         receptor = root.find('.//cfdi:Receptor', ns)
+        uuid_node = root.find(".//cfdi:CfdiRelacionados", ns)
+
         comprobante_attr = [
             "Version", "Serie", "Folio", "Fecha", "Total", "Sello", "NoCertificado",
             "FormaPago", "Certificado", "CondicionesDePago", "SubTotal",
             "Descuento", "Moneda", "Total", "TipoDeComprobante",
-            "MetodoPago", "LugarExpedicion", "Exportacion"
+            "MetodoPago", "LugarExpedicion", "Exportacion", "TipoCambio"
         ]
         timbrado_attr = [ "UUID", "FechaTimbrado", "RfcProvCertif", "SelloCFD", "NoCertificadoSAT", "SelloSAT"]
         emisor_attr = ["Nombre", "Rfc", "RegimenFiscal"]
         receptor_attr = ["Nombre", "Rfc", "RegimenFiscalReceptor", "DomicilioFiscalReceptor", "UsoCFDI"]
-
+        
         data = {attr: root.get(attr, "") for attr in comprobante_attr}
         data.update({attr: timbrado.get(attr, "") for attr in timbrado_attr})
+        data["UUID1"] = data.pop("UUID")
         data.update({attr: emisor.get(attr, "") for attr in emisor_attr})
         data["RFCEmisor"] = data.pop("Rfc")
         data["NombreEmisor"] = data.pop("Nombre")
@@ -37,11 +40,37 @@ def extract_xml_data(xml_path):
         data["RFCReceptor"] = data.pop("Rfc")
         data["NombreReceptor"] = data.pop("Nombre")
 
+        try:
+            uuid_value = root.find(".//cfdi:CfdiRelacionado", ns).get("UUID", "")
+            data.update({"UUIDRelacion": uuid_value})
+        except AttributeError:
+            data.update({"UUIDRelacion": ""})
+
+        traslado_node = root.find(".//cfdi:Traslado", ns)
+
+        if traslado_node is not None:
+            data.update({
+                "IVA16%": traslado_node.get("Importe", "")
+            })
+        else:
+            data.update({
+                "IVA16%": "",
+            })
+
+        filename = os.path.basename(xml_path)
+        data.update({"ArchivoXML": filename})
+
+        conceptos = root.findall(".//cfdi:Concepto", ns)
+        descripciones = [concepto.get("Descripcion", "") for concepto in conceptos if concepto.get("Descripcion", "")]
+        data.update({"Conceptos": " * ".join(descripciones) if descripciones else ""})
+
+        
+
         return data
 
     except Exception as e:
         print(f"Error extracting data from {xml_path}: {e}")
-        return Nonez
+        return None
 
 
 def infer_sqlite_type(value):

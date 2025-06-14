@@ -225,11 +225,11 @@ class XMLViewerApp(ctk.CTk):
             self.current_db_path = db_path
 
             # Load facturas table directly
-            self.load_table_data("facturas")
+            self.load_table_data("XMLDATA")
 
             # Update status with record count
             cursor = self.db_connection.cursor()
-            cursor.execute("SELECT COUNT(*) FROM facturas")
+            cursor.execute("SELECT COUNT(*) FROM XMLDATA")
             count = cursor.fetchone()[0]
             self.status_label.configure(text=f"BD: {count} registros")
 
