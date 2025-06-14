@@ -50,21 +50,25 @@ def extract_xml_data(xml_path):
 
         if traslado_node is not None:
             data.update({
-                "IVA16%": traslado_node.get("Importe", "")
+                "IVA16%": traslado_node.get("Importe", 0)
             })
         else:
             data.update({
-                "IVA16%": "",
+                "IVA16%": 0,
             })
 
         filename = os.path.basename(xml_path)
         data.update({"ArchivoXML": filename})
 
-        conceptos = root.findall(".//cfdi:Concepto", ns)
+        conceptos = root.findall('.//cfdi:Concepto', ns)
         descripciones = [concepto.get("Descripcion", "") for concepto in conceptos if concepto.get("Descripcion", "")]
         data.update({"Conceptos": " * ".join(descripciones) if descripciones else ""})
 
-        
+        impuestos_node = root.find('./cfdi:Impuestos', ns)
+        if impuestos_node is not None:
+            data.update({"TotalTrasladados": impuestos_node.get("TotalImpuestosTrasladados", 0)})
+        else:
+            data.update({"TotalTrasladados": 0 })
 
         return data
 
@@ -174,6 +178,7 @@ def main():
     # Create/connect to mi_base.db database
     print("🔗 Connecting to database mi_base.db...")
     conn = sqlite3.connect("mi_base.db")
+
 
     try:
         success = process_xml_folder(folder_path, conn)
