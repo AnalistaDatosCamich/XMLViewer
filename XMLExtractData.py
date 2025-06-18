@@ -64,11 +64,39 @@ def extract_xml_data(xml_path):
         descripciones = [concepto.get("Descripcion", "") for concepto in conceptos if concepto.get("Descripcion", "")]
         data.update({"Conceptos": " * ".join(descripciones) if descripciones else ""})
 
+        clave_prod = [concepto.get("ClaveProdServ", "") for concepto in conceptos if concepto.get("Descripcion", "")]
+        data.update({"claveProducto": " * ".join(clave_prod) if clave_prod else ""})
+
         impuestos_node = root.find('./cfdi:Impuestos', ns)
         if impuestos_node is not None:
             data.update({"TotalTrasladados": impuestos_node.get("TotalImpuestosTrasladados", 0)})
+            data.update({"TotalRetenidos": impuestos_node.get("TotalImpuestosRetenidos", 0)})
         else:
             data.update({"TotalTrasladados": 0 })
+            data.update({"TotalRetenidos": 0 })
+
+        # Extraer retenciones IVA e ISR
+        # Inicializar valores
+        retenido_iva = 0
+        retenido_isr = 0
+
+        # Iterar sobre las retenciones
+        if impuestos_node is not None:
+            retenciones_nodes = impuestos_node.findall('.//cfdi:Retenciones/cfdi:Retencion', ns)
+            for retencion in retenciones_nodes:
+                impuesto = retencion.get("Impuesto", 0)
+                importe = retencion.get("Importe", 0)
+
+                if impuesto == "001":  # IVA
+                    retenido_iva = importe
+                elif impuesto == "002":  # ISR
+                    retenido_isr = importe
+
+        # Actualizar data
+        data.update({
+            "retenidoIVA": retenido_iva,
+            "retenidoISR": retenido_isr
+        })
 
         return data
 
