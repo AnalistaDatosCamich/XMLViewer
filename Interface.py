@@ -7,7 +7,7 @@ import sqlite3
 import glob
 from datetime import datetime
 from lxml import etree
-from XMLExtractData import process_xml_folder
+from XMLExtractData import process_xml_folder, create_second_table_from_first
 
 ctk.set_appearance_mode("Dark")  # Dark mode
 ctk.set_default_color_theme("dark-blue")  # Dark blue theme
@@ -198,22 +198,39 @@ class XMLViewerApp(ctk.CTk):
 
     # FUNCIONES COMENTADAS DEL SELECTOR DE CARPETA ORIGINAL
     def select_folder(self):
-        """Open folder dialog and store selected path"""
-        # folder_path = filedialog.askopenfilename(
-        #     title="Seleccionar carpeta",
-        #     filetypes=[
-        #         ("Todos los archivos", "*.*"),
-        #         ("Facturas y transferencias", "*.xml"),
-        #         ("SQLite Database", "*.db"),
-        #         ("SQLite Database", "*.sqlite"),
-        #         ("SQLite Database", "*.sqlite3")
-        #     ]
-        # )
-        # if folder_path:
-        #     self.status_label.configure(text=f"Carpeta: {os.path.basename(folder_path)}")
-
-        # Ahora la función refresh_database se encarga de esto
-        self.refresh_database()
+        #"""Open folder dialog and process XML files"""
+        folder_path = filedialog.askdirectory(
+            title="Seleccionar carpeta con archivos XML"
+        )
+        
+        if folder_path:
+            self.status_label.configure(text="Procesando XMLs...")
+            self.update()  # Actualizar la interfaz
+            
+            try:
+                # Crear/conectar a la base de datos
+                db_path = "C://Analista de datos//Proyecto XML//mi_base.db"
+                conn = sqlite3.connect(db_path)
+                
+                # Procesar XMLs
+                success = process_xml_folder(folder_path, conn)
+                
+                if success:
+                    # Crear tabla XMLDATA
+                    create_second_table_from_first(conn)
+                    conn.close()
+                    
+                    # Cargar los datos procesados
+                    self.load_database(db_path)
+                    self.status_label.configure(text=f"XMLs procesados desde: {os.path.basename(folder_path)}")
+                else:
+                    conn.close()
+                    self.status_label.configure(text="Error procesando XMLs")
+                    messagebox.showerror("Error", "No se pudieron procesar los archivos XML")
+                    
+            except Exception as e:
+                self.status_label.configure(text="Error en procesamiento")
+                messagebox.showerror("Error", f"Error procesando XMLs:\n{str(e)}")
 
     def load_database(self, db_path):
         """Load SQLite database and display data"""
@@ -277,9 +294,34 @@ class XMLViewerApp(ctk.CTk):
 
             for row in rows:
                 self.tree.insert("", "end", values=row)
+            
+            # Ajustar anchos de columnas automáticamente
+            self.adjust_column_widths()
 
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"Error loading table data:\n{str(e)}")
+
+
+    def adjust_column_widths(self):
+        #"""Ajustar automáticamente el ancho de las columnas"""
+        for col in self.tree["columns"]:
+            # Obtener el ancho del encabezado
+            header_width = len(col) * 8 + 20  # Aproximadamente 8 pixels por caracter
+            
+            # Obtener el ancho máximo del contenido
+            max_content_width = 0
+            for item in self.tree.get_children():
+                values = self.tree.item(item)["values"]
+                col_index = list(self.tree["columns"]).index(col)
+                if col_index < len(values):
+                    content_width = len(str(values[col_index])) * 7 + 10
+                    max_content_width = max(max_content_width, content_width)
+            
+            # Usar el mayor entre header y contenido, con límites
+            final_width = max(header_width, max_content_width)
+            final_width = min(max(final_width, 80), 300)  # Mínimo 80, máximo 300
+            
+            self.tree.column(col, width=final_width)
 
     def copiar_seleccion(self, event=None):
         """Copiar selección al clipboard"""

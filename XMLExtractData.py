@@ -199,6 +199,104 @@ def process_xml_folder(folder_path, connection):
 
     return success
 
+def create_second_table_from_first(connection, source_table='facturas', target_table='XMLDATA'):
+    """
+    Crea una segunda tabla a partir de la tabla de facturas
+    """
+    cursor = connection.cursor()
+    
+    try:
+        #Eliminar tabla si existe ara recrearla
+        cursor.execute(f'DROP TABLE IF EXISTS {target_table}')
+        
+        # Crear la segunda tabla "XMLDATA"
+        # Crear la tabla XMLDATA con tu consulta específica
+        create_xmldata_sql = f'''
+        CREATE TABLE {target_table} AS
+        SELECT Version AS Versión, 
+            CASE
+                WHEN TipoDeComprobante = "I" THEN "Facturas"
+                WHEN TipoDeComprobante = "E" THEN "Nota de Crédito"
+                ELSE TipoDeComprobante
+            END AS Tipo,
+        SUBSTRING(Fecha,1, 10) AS "Fecha de emisión", FechaTimbrado AS "Fecha de Timbrado","" AS "Estado de pago", "" AS "Fecha de pago", Serie, Folio, UUID1 AS "UUID", 
+        UUIDRelacion, RFCEmisor AS "RFC Emisor", NombreEmisor AS "Nombre Emisor", LugarExpedicion AS "Lugar de Expedición", RFCEmisor AS "RFC Emisor", 
+        NombreReceptor AS "Nombre Receptor", "" AS "Residencia Fiscal", "" AS NumRegIdTrib, 
+            CASE 
+                WHEN UsoCFDI = "G03" THEN "(G03) Gastos en general"
+                WHEN UsoCFDI = "I08" THEN "(I08) Otra maquinaria y equipo"
+                WHEN UsoCFDI = "G02" THEN "(G02) Devoluciones, descuentos o bonificaciones"
+                WHEN UsoCFDI = "CP01" THEN  "(CP01) Pagos"
+                ELSE UsoCFDI
+            END AS "Uso CFDI", 
+            CASE 
+                WHEN TipoDeComprobante = 'E' THEN -SubTotal
+                ELSE SubTotal
+            END AS SubTotal,
+            CASE 
+                WHEN Descuento IS NULL THEN 0.0
+                WHEN TipoDeComprobante = 'E' THEN -Descuento
+                ELSE Descuento
+            END AS Descuento,
+        0 AS "TOTAL IEPS", "IVA16%", retenidoIVA, retenidoISR, 0 AS ISH,
+            CASE 
+                WHEN TipoDeComprobante = 'E' THEN -Total
+                ELSE Total
+            END AS Total_Final,
+        "" AS "Total original", TotalTrasladados , TotalRetenidos, 0 AS "Total local trasladado", 0 AS "Total local retenido",
+        "" AS "Complemento" , Moneda, TipoCambio AS "Tipo de Cambio", 
+            CASE
+                WHEN FormaPago = "01" THEN "01 - Efectivo" 
+                WHEN FormaPago = "02" THEN "02 - Cheque"
+                WHEN FormaPago = "03" THEN "03 - Transferencia electrónica de fondos"
+                WHEN FormaPago = "04" THEN "04 - Tarjeta de crédito"
+                WHEN FormaPago = "05" THEN "05 - Monedero Electrónico"
+                WHEN FormaPago = "28" THEN "28 - Tarjeta de débito"
+                WHEN FormaPago = "30" THEN "30 - Aplicación de anticipos"
+                WHEN FormaPago = "99" THEN "99 - Por definir"
+                ELSE FormaPago
+            END AS "Forma de pago", 
+            CASE 
+                WHEN MetodoPago = "PUE" THEN "(PUE)- Pago en una sola exhibición"  
+                WHEN MetodoPago = "PPD" THEN "(PPD)- Pago en parcialidades o diferido"
+                ELSE MetodoPago
+            END AS "Método de pago", 
+        "" AS "NumCtaPago", CondicionesDePago AS "Condición de pago", Conceptos,
+            CASE
+                WHEN INSTR(claveProducto, "15101505")>0 /*Diesel*/	
+                OR INSTR(claveProducto, "15101514")>0 /*Gasolina normal*/
+                OR INSTR(claveProducto, "15101515")>0 /*Gasolina Premium*/
+                OR INSTR(claveProducto, "15111510")>0 /*Gas licuado */
+                OR INSTR(claveProducto, "15111512")>0 /*Gas natural */
+                THEN "Si"
+                ELSE "No"
+            END AS "Combustible",
+        0 AS "IEPS 3%", 0 AS "IEPS 6%", 0 AS "IEPS 7%",
+        0 AS "IEPS 8%" , 0 AS "IEPS 9%", 0 AS "IEPS 26.5%", 0 AS "IEPS 30%", 0 AS "IEPS 53%", 0 AS "IEPS 160%", 
+        ArchivoXML, "" AS "Dirección Emisor", "" AS "Localidad emisor", "" AS "Dirección Receptor", "" AS "Localidad Receptor",
+        0 AS "IVA 8%", 0 AS "IEPS 30,4%", 0 AS "IVA Ret 6%", RegimenFiscalReceptor, DomicilioFiscalReceptor
+        FROM {source_table} WHERE TipoDeComprobante IN ("E", "I")
+        '''
+
+        cursor.execute(create_xmldata_sql)
+                
+        # Obtener número de registros insertados
+        cursor.execute(f'SELECT COUNT(*) FROM {target_table}')
+        rows_count = cursor.fetchone()[0]
+        
+        connection.commit()
+        print(f"📊 Table {target_table} created successfully")
+        print(f"✅ {rows_count} records processed in {target_table}")
+        return True
+        
+    except Exception as e:
+        connection.rollback()
+        print(f"❌ Error creating second table: {e}")
+        return False
+    
+    finally:
+        cursor.close()
+
 
 def main():
     folder_path = "C://AdminXML//BovedaCFDi//CLE230712B31//Recibidas//2025//12. DICIEMBRE 2024//12 todo dic"
@@ -212,6 +310,8 @@ def main():
         success = process_xml_folder(folder_path, conn)
         if success:
             print("🎉 Process completed successfully!")
+
+            create_second_table_from_first(conn)
         else:
             print("⚠️ Process completed with errors")
     finally:
