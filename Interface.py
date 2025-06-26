@@ -7,7 +7,7 @@ import sqlite3
 import glob
 from datetime import datetime
 from lxml import etree
-from XMLExtractData import process_xml_folder, create_second_table_from_first
+from XMLExtractData import process_xml_folder, create_second_table_from_first, get_resource_path
 
 ctk.set_appearance_mode("Dark")  # Dark mode
 ctk.set_default_color_theme("dark-blue")  # Dark blue theme
@@ -23,6 +23,11 @@ class XMLViewerApp(ctk.CTk):
         self.current_table = ""
         self.datos_completos = []  # Almacenar todos los datos
         self.datos_actuales = []  # Datos filtrados actualmente
+
+        self.drag_start = None
+        self.dragging = False
+        self.drag_start_item = None
+
         # Configure window
 
         self.title("XMLViewer")
@@ -140,7 +145,7 @@ class XMLViewerApp(ctk.CTk):
             self.export_utilities.grid_columnconfigure(i, weight=1)
 
         # Cargar base de datos al iniciar la aplicación
-        self.load_initial_database()
+        #self.load_initial_database()
 
     def sql_section(self):
         # ⬇️ This frame defines the SQL workplace
@@ -176,25 +181,7 @@ class XMLViewerApp(ctk.CTk):
 
         # Expansión del Treeview
         tree_frame.grid_rowconfigure(0, weight=1)
-        tree_frame.grid_columnconfigure(0, weight=1)
-
-    def load_initial_database(self):
-        """Cargar la base de datos mi_base.db al iniciar la aplicación"""
-        db_path = "C://Analista de datos//Proyecto XML//mi_base.db"
-        if os.path.exists(db_path):
-            self.load_database(db_path)
-        else:
-            self.status_label.configure(text="mi_base.db no encontrada")
-
-    def refresh_database(self):
-        """Refrescar los datos de la base de datos mi_base.db"""
-        db_path = "C://Analista de datos//Proyecto XML//mi_base.db"
-        if os.path.exists(db_path):
-            self.load_database(db_path)
-            self.status_label.configure(text="Datos refrescados")
-        else:
-            messagebox.showerror("Error", "No se encontró el archivo mi_base.db")
-            self.status_label.configure(text="mi_base.db no encontrada")
+        tree_frame.grid_columnconfigure(0, weight=1)           
 
     # FUNCIONES COMENTADAS DEL SELECTOR DE CARPETA ORIGINAL
     def select_folder(self):
@@ -209,7 +196,7 @@ class XMLViewerApp(ctk.CTk):
             
             try:
                 # Crear/conectar a la base de datos
-                db_path = "C://Analista de datos//Proyecto XML//mi_base.db"
+                db_path = os.path.join(get_resource_path(), "mi_base.db")
                 conn = sqlite3.connect(db_path)
                 
                 # Procesar XMLs
@@ -276,7 +263,11 @@ class XMLViewerApp(ctk.CTk):
 
             for col in columnas:
                 self.tree.heading(col, text=col)
-                self.tree.column(col, width=100)
+                # Calcular ancho óptimo una sola vez
+                header_width = len(col) * 8 + 40
+                optimal_width = max(header_width, 300)
+                optimal_width = min(optimal_width, 120)
+                self.tree.column(col, width=optimal_width, minwidth=80, stretch= False)
 
             # Insert data
             rows = cursor.fetchall()
@@ -295,33 +286,9 @@ class XMLViewerApp(ctk.CTk):
             for row in rows:
                 self.tree.insert("", "end", values=row)
             
-            # Ajustar anchos de columnas automáticamente
-            self.adjust_column_widths()
 
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"Error loading table data:\n{str(e)}")
-
-
-    def adjust_column_widths(self):
-        #"""Ajustar automáticamente el ancho de las columnas"""
-        for col in self.tree["columns"]:
-            # Obtener el ancho del encabezado
-            header_width = len(col) * 8 + 20  # Aproximadamente 8 pixels por caracter
-            
-            # Obtener el ancho máximo del contenido
-            max_content_width = 0
-            for item in self.tree.get_children():
-                values = self.tree.item(item)["values"]
-                col_index = list(self.tree["columns"]).index(col)
-                if col_index < len(values):
-                    content_width = len(str(values[col_index])) * 7 + 10
-                    max_content_width = max(max_content_width, content_width)
-            
-            # Usar el mayor entre header y contenido, con límites
-            final_width = max(header_width, max_content_width)
-            final_width = min(max(final_width, 80), 300)  # Mínimo 80, máximo 300
-            
-            self.tree.column(col, width=final_width)
 
     def copiar_seleccion(self, event=None):
         """Copiar selección al clipboard"""

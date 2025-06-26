@@ -1,8 +1,17 @@
 import sqlite3
 import glob
 import os
+import sys
 from lxml import etree
 
+def get_resource_path():
+    """Obtiene la ruta correcta para recursos, funciona tanto en desarrollo como en .exe"""
+    if getattr(sys, 'frozen', False):
+        # Si está compilado con PyInstaller
+        return os.path.dirname(sys.executable)
+    else:
+        # Si está en desarrollo
+        return os.path.dirname(os.path.abspath(__file__))
 
 def extract_xml_data(xml_path):
     try:
@@ -18,7 +27,6 @@ def extract_xml_data(xml_path):
         timbrado = root.find('.//cfdi:Complemento/tfd:TimbreFiscalDigital', ns)
         emisor = root.find('.//cfdi:Emisor', ns)
         receptor = root.find('.//cfdi:Receptor', ns)
-        uuid_node = root.find(".//cfdi:CfdiRelacionados", ns)
 
         comprobante_attr = [
             "Version", "Serie", "Folio", "Fecha", "Total", "Sello", "NoCertificado",
