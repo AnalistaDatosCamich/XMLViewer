@@ -4,14 +4,10 @@ from tkinter import ttk
 import tkinter as tk
 import os
 import sqlite3
-import glob
-from datetime import datetime
-from lxml import etree
-from XMLExtractData import process_xml_folder, create_second_table_from_first, get_resource_path
+import pyi_splash
 
 ctk.set_appearance_mode("Dark")  # Dark mode
 ctk.set_default_color_theme("dark-blue")  # Dark blue theme
-
 
 class XMLViewerApp(ctk.CTk):
     def __init__(self):
@@ -186,6 +182,7 @@ class XMLViewerApp(ctk.CTk):
     # FUNCIONES COMENTADAS DEL SELECTOR DE CARPETA ORIGINAL
     def select_folder(self):
         #"""Open folder dialog and process XML files"""
+        from XMLExtractData import process_xml_folder, create_second_table_from_first, get_resource_path
         folder_path = filedialog.askdirectory(
             title="Seleccionar carpeta con archivos XML"
         )
@@ -467,5 +464,7 @@ class XMLViewerApp(ctk.CTk):
 
 
 if __name__ == "__main__":
+    if hasattr(pyi_splash, 'is_alive') and pyi_splash.is_alive():
+        pyi_splash.close()
     app = XMLViewerApp()
     app.mainloop()
