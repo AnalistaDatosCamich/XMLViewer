@@ -95,6 +95,8 @@ class XMLViewerApp(ctk.CTk):
             width=100
         )
         self.last_date_bar.grid(row=0, column=5, pady=10, padx=5, sticky = "ew")
+        self.first_date_text.trace('w', self.filtrar_datos)
+        self.last_date_text.trace('w', self.filtrar_datos)
 
         self.clear_filter_button = ctk.CTkButton(
             self.controls_frame,
@@ -452,15 +454,48 @@ class XMLViewerApp(ctk.CTk):
             return
 
         termino = self.search_var.get().lower()
+        fecha_min = self.first_date_text.get().strip()
+        fecha_max = self.last_date_text.get().strip()
 
-        if not termino:
+        if not termino and not fecha_min and not fecha_max:
             self.datos_actuales = self.datos_completos.copy()
         else:
-            # Filtrar en memoria
-            self.datos_actuales = [
-                fila for fila in self.datos_completos
-                if any(str(celda).lower().find(termino) >= 0 for celda in fila if celda)
-            ]
+                # Obtener índice de columna de fecha
+            if self.db_connection:
+                cursor = self.db_connection.cursor()
+                columnas = [desc[0].lower() for desc in cursor.execute(f"SELECT * FROM {self.current_table or 'XMLDATA'} LIMIT 0").description]
+                fecha_idx = next((i for i, col in enumerate(columnas) if 'fecha' in col), None)
+            
+            # Convertir fechas de dd-mm-yyyy a yyyy-mm-dd
+            def convertir_fecha(fecha_str):
+                try:
+                    if len(fecha_str) == 10 and fecha_str.count('-') == 2:
+                        dd, mm, yyyy = fecha_str.split('-')
+                        return f"{yyyy}-{mm}-{dd}"
+                    return fecha_str
+                except:
+                    return fecha_str
+            
+            fecha_min_conv = convertir_fecha(fecha_min) if fecha_min else ""
+            fecha_max_conv = convertir_fecha(fecha_max) if fecha_max else ""
+            
+            self.datos_actuales = []
+            for fila in self.datos_completos:
+                # Filtro de texto
+                cumple_texto = not termino or any(str(celda).lower().find(termino) >= 0 for celda in fila if celda)
+                
+                # Filtro de fecha
+                cumple_fecha = True
+                if fecha_idx is not None and (fecha_min_conv or fecha_max_conv):
+                    fecha_fila = convertir_fecha(str(fila[fecha_idx])) if fila[fecha_idx] else ""
+                    
+                    if fecha_min_conv and fecha_fila < fecha_min_conv:
+                        cumple_fecha = False
+                    if fecha_max_conv and fecha_fila > fecha_max_conv:
+                        cumple_fecha = False
+                
+                if cumple_texto and cumple_fecha:
+                    self.datos_actuales.append(fila)
 
         self.actualizar_treeview()
 
@@ -476,11 +511,28 @@ class XMLViewerApp(ctk.CTk):
             self.actualizar_treeview()
 
     def actualizar_treeview(self):
-        """Actualizar vista con datos actuales"""
-        # Limpiar
+        """Actualizar vista con datos actuales manteniendo ordenamiento"""
+        # Aplicar ordenamiento si hay uno activo
+        if hasattr(self, 'sort_column') and self.sort_column and self.datos_actuales:
+            cursor = self.db_connection.cursor()
+            columnas = [desc[0] for desc in cursor.execute(f"SELECT * FROM {self.current_table or 'XMLDATA'} LIMIT 0").description]
+            
+            if self.sort_column in columnas:
+                col_idx = columnas.index(self.sort_column)
+                
+                def sort_key(fila):
+                    valor = fila[col_idx]
+                    if valor is None:
+                        return ""
+                    try:
+                        return float(valor)
+                    except (ValueError, TypeError):
+                        return str(valor).lower()
+                
+                self.datos_actuales.sort(key=sort_key, reverse=self.sort_reverse)
+        
+        # Limpiar y insertar datos
         self.tree.delete(*self.tree.get_children())
-
-        # Insertar datos filtrados/ordenados
         for fila in self.datos_actuales:
             self.tree.insert("", "end", values=fila)
 

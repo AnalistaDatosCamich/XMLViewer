@@ -1,0 +1,1 @@
+pyinstaller --onefile --windowed --icon=XMLViewerIcon.ico --name=XMLViewer --clean --noconfirm --hidden-import=XMLExtractData --upx-dir=ruta_upx --exclude-module=unnecessary_module --strip --noupx --runtime-tmpdir=. Interface.py
