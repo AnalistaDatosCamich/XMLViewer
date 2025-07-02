@@ -223,18 +223,18 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
         CREATE TABLE {target_table} AS
         SELECT Version AS Versión, 
             CASE
-                WHEN TipoDeComprobante = "I" THEN "Facturas"
-                WHEN TipoDeComprobante = "E" THEN "Nota de Crédito"
+                WHEN TipoDeComprobante = "I" THEN "Factura"
+                WHEN TipoDeComprobante = "E" THEN "NotaCredito"
                 ELSE TipoDeComprobante
             END AS Tipo,
         SUBSTRING(Fecha,1, 10) AS "Fecha de emisión", FechaTimbrado AS "Fecha de Timbrado","" AS "Estado de pago", "" AS "Fecha de pago", Serie, Folio, UUID1 AS "UUID", 
         UUIDRelacion, RFCEmisor AS "RFC Emisor", NombreEmisor AS "Nombre Emisor", LugarExpedicion AS "Lugar de Expedición", RFCEmisor AS "RFC Emisor", 
         NombreReceptor AS "Nombre Receptor", "" AS "Residencia Fiscal", "" AS NumRegIdTrib, 
             CASE 
-                WHEN UsoCFDI = "G03" THEN "(G03) Gastos en general"
-                WHEN UsoCFDI = "I08" THEN "(I08) Otra maquinaria y equipo"
-                WHEN UsoCFDI = "G02" THEN "(G02) Devoluciones, descuentos o bonificaciones"
-                WHEN UsoCFDI = "CP01" THEN  "(CP01) Pagos"
+                WHEN UsoCFDI = "G03" THEN "G03 - Gastos en general"
+                WHEN UsoCFDI = "I08" THEN "I08 - Otra maquinaria y equipo"
+                WHEN UsoCFDI = "G02" THEN "G02 - Devoluciones, descuentos o bonificaciones"
+                WHEN UsoCFDI = "CP01" THEN  "CP01 - Pagos"
                 ELSE UsoCFDI
             END AS "Uso CFDI", 
             CASE 
@@ -265,8 +265,8 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
                 ELSE FormaPago
             END AS "Forma de pago", 
             CASE 
-                WHEN MetodoPago = "PUE" THEN "(PUE)- Pago en una sola exhibición"  
-                WHEN MetodoPago = "PPD" THEN "(PPD)- Pago en parcialidades o diferido"
+                WHEN MetodoPago = "PUE" THEN "PUE- Pago en una sola exhibición"  
+                WHEN MetodoPago = "PPD" THEN "PPD- Pago en parcialidades o diferido"
                 ELSE MetodoPago
             END AS "Método de pago", 
         "" AS "NumCtaPago", CondicionesDePago AS "Condición de pago", Conceptos,

@@ -4,7 +4,6 @@ from tkinter import ttk
 import tkinter as tk
 import os
 import sqlite3
-import pyi_splash
 
 ctk.set_appearance_mode("Dark")  # Dark mode
 ctk.set_default_color_theme("dark-blue")  # Dark blue theme
@@ -299,7 +298,7 @@ class XMLViewerApp(ctk.CTk):
 
         # Datos
         for fila in seleccionados:
-            fila_texto = "\t".join(str(cell) if cell else "" for cell in fila)
+            fila_texto = "\t".join(str(cell) if cell not in [None, ""] else "" for cell in fila)
             texto.append(fila_texto)
 
         # Copiar al clipboard
@@ -464,7 +463,5 @@ class XMLViewerApp(ctk.CTk):
 
 
 if __name__ == "__main__":
-    if hasattr(pyi_splash, 'is_alive') and pyi_splash.is_alive():
-        pyi_splash.close()
     app = XMLViewerApp()
     app.mainloop()
