@@ -22,6 +22,8 @@ class XMLViewerApp(ctk.CTk):
         self.drag_start = None
         self.dragging = False
         self.drag_start_item = None
+        self.sort_column = None
+        self.sort_reverse = False
 
         # Configure window
 
@@ -258,7 +260,7 @@ class XMLViewerApp(ctk.CTk):
             self.tree["show"] = "headings"
 
             for col in columnas:
-                self.tree.heading(col, text=col)
+                self.tree.heading(col, text=col, command=lambda c=col: self.ordenar_por_columna(c))
                 # Calcular ancho óptimo una sola vez
                 header_width = len(col) * 8 + 40
                 optimal_width = max(header_width, 300)
@@ -285,6 +287,36 @@ class XMLViewerApp(ctk.CTk):
 
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"Error loading table data:\n{str(e)}")
+
+    def ordenar_por_columna(self, columna):
+        """Ordenar datos por columna seleccionada"""
+        if not hasattr(self, 'datos_actuales') or not self.datos_actuales:
+            return
+        
+        # Obtener índice de la columna
+        columnas = [description[0] for description in self.db_connection.cursor().execute(f"SELECT * FROM {self.current_table or 'XMLDATA'} LIMIT 0").description]
+        col_idx = columnas.index(columna)
+        
+        # Alternar orden si es la misma columna
+        if self.sort_column == columna:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = columna
+            self.sort_reverse = False
+        
+        # Ordenar datos actuales
+        def sort_key(fila):
+            valor = fila[col_idx]
+            if valor is None:
+                return ""
+            # Intentar convertir a número para ordenamiento numérico
+            try:
+                return float(valor)
+            except (ValueError, TypeError):
+                return str(valor).lower()
+        
+        self.datos_actuales.sort(key=sort_key, reverse=self.sort_reverse)
+        self.actualizar_treeview()
 
     def copiar_seleccion(self, event=None):
         """Copiar selección al clipboard"""
