@@ -332,7 +332,17 @@ class XMLViewerApp(ctk.CTk):
 
         # Datos
         for fila in seleccionados:
-            fila_texto = "\t".join(str(cell) if cell not in [None, ""] else "" for cell in fila)
+            # Limpiar caracteres especiales de cada celda
+            fila_limpia = []
+            for cell in fila:
+                if cell not in [None, ""]:
+                    # Reemplazar saltos de línea y caracteres problemáticos
+                    cell_str = str(cell).replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+                    fila_limpia.append(cell_str)
+                else:
+                    fila_limpia.append("")
+            
+            fila_texto = "\t".join(fila_limpia)
             texto.append(fila_texto)
 
         # Copiar al clipboard
