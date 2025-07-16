@@ -106,6 +106,9 @@ def extract_xml_data(xml_path):
             "retenidoISR": retenido_isr
         })
 
+        if "Folio" in data:
+            data["Folio"] = " " + str(data["Folio"]) 
+
         return data
 
     except Exception as e:
@@ -113,8 +116,11 @@ def extract_xml_data(xml_path):
         return None
 
 
-def infer_sqlite_type(value):
-    if isinstance(value, int):
+def infer_sqlite_type(value, column_name = None):
+    if column_name == "Folio":
+        value = str(value)
+        return "TEXT"
+    elif isinstance(value, int):
         return "INTEGER"
     elif isinstance(value, float):
         return "REAL"
@@ -132,7 +138,7 @@ def process_invoices_with_transaction(invoice_data, connection, clear_table=True
         # Create table using first record as reference
         if invoice_data:
             first_record = invoice_data[0]
-            columns_def = ', '.join([f'"{k}" {infer_sqlite_type(v)}' for k, v in first_record.items()])
+            columns_def = ', '.join([f'"{k}" {infer_sqlite_type(v, k)}' for k, v in first_record.items()])
             create_table_sql = f'CREATE TABLE IF NOT EXISTS {table_name} ({columns_def})'
             cursor.execute(create_table_sql)
             print(f"📊 Table {table_name} created/verified")
@@ -238,17 +244,17 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
                 ELSE UsoCFDI
             END AS "Uso CFDI", 
             CASE 
-                WHEN TipoDeComprobante = 'E' THEN -SubTotal
+                WHEN TipoDeComprobante = 'E' THEN SubTotal
                 ELSE SubTotal
             END AS SubTotal,
             CASE 
                 WHEN Descuento IS NULL THEN 0.0
-                WHEN TipoDeComprobante = 'E' THEN -Descuento
+                WHEN TipoDeComprobante = 'E' THEN Descuento
                 ELSE Descuento
             END AS Descuento,
         0 AS "TOTAL IEPS", "IVA16%", retenidoIVA, retenidoISR, 0 AS ISH,
             CASE 
-                WHEN TipoDeComprobante = 'E' THEN -Total
+                WHEN TipoDeComprobante = 'E' THEN Total
                 ELSE Total
             END AS Total_Final,
         "" AS "Total original", TotalTrasladados , TotalRetenidos, 0 AS "Total local trasladado", 0 AS "Total local retenido",
