@@ -107,7 +107,7 @@ def extract_xml_data(xml_path):
         })
 
         if "Folio" in data:
-            data["Folio"] = " " + str(data["Folio"]) 
+            data["Folio"] = "​" + str(data["Folio"]) 
 
         return data
 
