@@ -54,16 +54,7 @@ def extract_xml_data(xml_path):
         except AttributeError:
             data.update({"UUIDRelacion": ""})
 
-        traslado_node = root.find(".//cfdi:Traslado", ns)
-
-        if traslado_node is not None:
-            data.update({
-                "IVA16%": traslado_node.get("Importe", 0)
-            })
-        else:
-            data.update({
-                "IVA16%": 0,
-            })
+        impuestos_node = root.find("./cfdi:Impuestos", ns)
 
         filename = os.path.basename(xml_path)
         data.update({"ArchivoXML": filename})
@@ -85,26 +76,87 @@ def extract_xml_data(xml_path):
 
         # Extraer retenciones IVA e ISR
         # Inicializar valores
+        iva_trasladado = 0
+        ieps_trasladado = 0
         retenido_iva = 0
         retenido_isr = 0
+        total_local_trasladados = 0
 
-        # Iterar sobre las retenciones
+        # Definir namespace para impuestos locales
+        ns_local = {'implocal': 'http://www.sat.gob.mx/implocal'}
+
+        # Inicializar IEPS por porcentajes
+        ieps_porcentajes = {
+            "IEPS3": 0, "IEPS6": 0, "IEPS7": 0, "IEPS8": 0, 
+            "IEPS9": 0, "IEPS265": 0, "IEPS30": 0, 
+            "IEPS53": 0, "IEPS160": 0
+        }
+
+        # Obtener IVA trasladado del nodo principal de impuestos
         if impuestos_node is not None:
-            retenciones_nodes = impuestos_node.findall('.//cfdi:Retenciones/cfdi:Retencion', ns)
-            for retencion in retenciones_nodes:
-                impuesto = retencion.get("Impuesto", 0)
-                importe = retencion.get("Importe", 0)
+            traslados_nodes = impuestos_node.findall('./cfdi:Traslados/cfdi:Traslado', ns)
+            for traslado in traslados_nodes:
+                impuesto = traslado.get("Impuesto", "")
+                importe = float(traslado.get("Importe", "0"))
 
-                if impuesto == "001":  # IVA
-                    retenido_iva = importe
-                elif impuesto == "002":  # ISR
+                if impuesto == "002":  # IVA
+                    iva_trasladado = importe
+                elif impuesto == "003":  # IEPS
+                    ieps_trasladado = importe
+
+                    tasa = float(traslado.get("TasaOCuota", "0"))
+                    tasa_porcentaje = tasa*100
+
+                    # Mapear según el porcentaje
+                    if tasa_porcentaje == 3:
+                        ieps_porcentajes["IEPS3"] = importe
+                    elif tasa_porcentaje == 6:
+                        ieps_porcentajes["IEPS6"] = importe
+                    elif tasa_porcentaje == 7:
+                        ieps_porcentajes["IEPS7"] = importe
+                    elif tasa_porcentaje == 8:
+                        ieps_porcentajes["IEPS8"] = importe
+                    elif tasa_porcentaje == 9:
+                        ieps_porcentajes["IEPS9"] = importe
+                    elif tasa_porcentaje == 26.5:
+                        ieps_porcentajes["IEPS265"] = importe
+                    elif tasa_porcentaje == 30:
+                        ieps_porcentajes["IEPS30"] = importe
+                    elif tasa_porcentaje == 53:
+                        ieps_porcentajes["IEPS53"] = importe
+                    elif tasa_porcentaje == 160:
+                        ieps_porcentajes["IEPS160"] = importe
+
+            # Obtener retenciones de IVA (si existen en el nodo principal)
+            retenciones_nodes = impuestos_node.findall('./cfdi:Retenciones/cfdi:Retencion', ns)
+            for retencion in retenciones_nodes:
+                impuesto = retencion.get("Impuesto", "")
+                importe = float(retencion.get("Importe", "0"))
+                
+                if impuesto == "001": # ISR
                     retenido_isr = importe
+                elif impuesto == "002":  # IVA retenido
+                    retenido_iva = importe
+
+        # Obtener total de traslados locales del complemento
+        complemento_node = root.find('.//cfdi:Complemento', ns)
+        if complemento_node is not None:
+            impuestos_locales = complemento_node.find('.//implocal:ImpuestosLocales', ns_local)
+            if impuestos_locales is not None:
+                total_local_trasladados = float(impuestos_locales.get("TotaldeTraslados", "0"))
 
         # Actualizar data
         data.update({
+            "IVA16%": iva_trasladado,
+            "IEPS": ieps_trasladado if ieps_trasladado > 0 else 0,
+            "retenidoISR": retenido_isr,
             "retenidoIVA": retenido_iva,
-            "retenidoISR": retenido_isr
+            "totalLocalTrasladados": total_local_trasladados
         })
+
+        #Agregar todos los porcentajes de IEPS
+        data.update(ieps_porcentajes)
+
 
         if "Folio" in data:
             data["Folio"] = "​" + str(data["Folio"]) 
@@ -252,12 +304,12 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
                 WHEN TipoDeComprobante = 'E' THEN Descuento
                 ELSE Descuento
             END AS Descuento,
-        0 AS "TOTAL IEPS", "IVA16%", retenidoIVA, retenidoISR, 0 AS ISH,
+        IEPS AS "TOTAL IEPS", "IVA16%", retenidoIVA, retenidoISR, 0 AS ISH,
             CASE 
                 WHEN TipoDeComprobante = 'E' THEN Total
                 ELSE Total
             END AS Total_Final,
-        "" AS "Total original", TotalTrasladados , TotalRetenidos, 0 AS "Total local trasladado", 0 AS "Total local retenido",
+        "" AS "Total original", TotalTrasladados , TotalRetenidos, totalLocalTrasladados AS "Total local trasladado", 0 AS "Total local retenido",
         "" AS "Complemento" , Moneda, TipoCambio AS "Tipo de Cambio", 
             CASE
                 WHEN FormaPago = "01" THEN "01 - Efectivo" 
@@ -285,8 +337,8 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
                 THEN "Si"
                 ELSE "No"
             END AS "Combustible",
-        0 AS "IEPS 3%", 0 AS "IEPS 6%", 0 AS "IEPS 7%",
-        0 AS "IEPS 8%" , 0 AS "IEPS 9%", 0 AS "IEPS 26.5%", 0 AS "IEPS 30%", 0 AS "IEPS 53%", 0 AS "IEPS 160%", 
+        IEPS3 AS "IEPS 3%", IEPS6 AS "IEPS 6%", IEPS7 AS "IEPS 7%",
+        IEPS8 AS "IEPS 8%" , IEPS9 AS "IEPS 9%", IEPS265 AS "IEPS 26.5%", IEPS30 AS "IEPS 30%", IEPS53 AS "IEPS 53%", IEPS160 AS "IEPS 160%", 
         ArchivoXML, "" AS "Dirección Emisor", "" AS "Localidad emisor", "" AS "Dirección Receptor", "" AS "Localidad Receptor",
         0 AS "IVA 8%", 0 AS "IEPS 30,4%", 0 AS "IVA Ret 6%", RegimenFiscalReceptor, DomicilioFiscalReceptor
         FROM {source_table} WHERE TipoDeComprobante IN ("E", "I")
