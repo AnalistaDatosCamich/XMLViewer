@@ -363,6 +363,94 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
     finally:
         cursor.close()
 
+def extract_products_from_xml(xml_path):
+    """Extrae productos de un XML específico"""
+    try:
+        tree = etree.parse(xml_path)
+        root = tree.getroot()
+        
+        ns = {
+            'cfdi': 'http://www.sat.gob.mx/cfd/4',
+            'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'
+        }
+        
+        # Obtener UUID
+        timbrado = root.find('.//cfdi:Complemento/tfd:TimbreFiscalDigital', ns)
+        uuid = timbrado.get('UUID')
+        
+        # Extraer conceptos
+        conceptos = root.findall('.//cfdi:Concepto', ns)
+        productos = []
+        
+        for concepto in conceptos:
+            producto = {
+                'uuid_factura': uuid,
+                'clave_producto': concepto.get('ClaveProdServ', ''),
+                'descripcion': concepto.get('Descripcion', ''),
+                'cantidad': float(concepto.get('Cantidad', 0)),
+                'clave_unidad':concepto.get('ClaveUnidad', ''),
+                'unidad': concepto.get('Unidad', ''),
+                'valor_unitario': float(concepto.get('ValorUnitario', 0)),
+                'importe': float(concepto.get('Importe', 0)),
+                'descuento': float(concepto.get('Descuento', 0))
+            }
+            productos.append(producto)
+        
+        return productos
+    except Exception as e:
+        print(f"Error extracting products from {xml_path}: {e}")
+        return []
+
+def create_products_table(connection):
+    """Crea tabla de productos y la llena con datos de todos los XMLs"""
+    cursor = connection.cursor()
+    
+    try:
+        # Crear tabla productos
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS productos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid_factura TEXT,
+            clave_producto TEXT,
+            descripcion TEXT,
+            cantidad REAL,
+            clave_unidad TEXT,
+            unidad TEXT,
+            valor_unitario REAL,
+            importe REAL,
+            descuento REAL,
+            FOREIGN KEY (uuid_factura) REFERENCES facturas (UUID1)
+        )
+        ''')
+        
+        # Limpiar tabla
+        cursor.execute('DELETE FROM productos')
+        
+        # Obtener todos los archivos XML de la carpeta
+        folder_path = "C://AdminXML//BovedaCFDi//CLE230712B31//Recibidas//2025//12. DICIEMBRE 2024//12 todo dic"
+        pattern = os.path.join(folder_path, "*.xml")
+        xml_files = glob.glob(pattern)
+        
+        total_productos = 0
+        for xml_file in xml_files:
+            productos = extract_products_from_xml(xml_file)
+            for producto in productos:
+                cursor.execute('''
+                INSERT INTO productos (uuid_factura, clave_producto, descripcion, cantidad, clave_unidad, unidad, valor_unitario, importe, descuento)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
+                ''', tuple(producto.values()))
+                total_productos += 1
+        
+        connection.commit()
+        print(f"✅ Tabla productos creada con {total_productos} registros")
+        return True
+        
+    except Exception as e:
+        connection.rollback()
+        print(f"❌ Error creando tabla productos: {e}")
+        return False
+    finally:
+        cursor.close()
 
 def main():
     folder_path = "C://AdminXML//BovedaCFDi//CLE230712B31//Recibidas//2025//12. DICIEMBRE 2024//12 todo dic"
@@ -378,6 +466,7 @@ def main():
             print("🎉 Process completed successfully!")
 
             create_second_table_from_first(conn)
+            create_products_table(conn)
         else:
             print("⚠️ Process completed with errors")
     finally:

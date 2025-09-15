@@ -9,6 +9,92 @@ from reportlab.lib.utils import ImageReader
 from io import BytesIO
 from num2words import num2words
 import qrcode
+import sqlite3 
+
+def obtener_factura_por_uuid(uuid):
+    """"Obtiene datos de una factura específica por su UUID"""
+    conn = sqlite3.connect("mi_base.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM facturas WHERE UUID1 = ?", (uuid,))
+    factura = cursor.fetchone()
+
+    if factura:
+        columns = [description[0] for description in cursor.description]
+        factura_dict = dict(zip(columns, factura))
+    else:
+        factura_dict = None
+
+    conn.close()
+    return factura_dict
+
+
+def obtener_productos_por_uuid(uuid):
+    """"Obtiene datos de una factura específica por UUID"""
+    conn = sqlite3.connect("mi_base.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM productos WHERE uuid_factura = ?", (uuid,))
+    productos = cursor.fetchall()
+
+    #Convertir a lista de diccionario
+    columns = [description[0] for description in cursor.description]
+    productos_list = [dict(zip(columns, producto)) for producto in productos]
+
+    conn.close()
+    return productos_list
+
+def crear_pdf_factura(uuid):
+    """Crea PDF con datos reales de la base de datos"""
+    factura = obtener_factura_por_uuid(uuid)
+    productos = obtener_productos_por_uuid(uuid)
+    
+    if not factura:
+        print(f"No se encontró factura con UUID: {uuid}")
+        return
+    
+    # Reemplazar datos hardcodeados con datos reales
+    emisor_data = [
+        ["Nombre:", factura.get('NombreEmisor', '')],
+        ["RFC:", factura.get('RFCEmisor', '')],
+        ["Regimen Fiscal:", factura.get('RegimenFiscal', '')],
+        ["No. certificado digital:", factura.get('NoCertificado', '')],
+        ["Folio Fiscal", factura.get('UUID1', '')]
+    ]
+    
+    documento_data = [  
+        ["Serial:", factura.get('Folio', '')],
+        ["Fecha de emisión:", factura.get('Fecha', '')[:10] if factura.get('Fecha') else ''],
+        ["Lugar de emisión:", factura.get('LugarExpedicion', '')],
+        ["Tipo de comprobante:", "Ingreso" if factura.get('TipoDeComprobante') == 'I' else 'Egreso']
+    ]
+    
+    receptor_data = [
+        ["Nombre:", factura.get('NombreReceptor', '')],
+        ["RFC:", factura.get('RFCReceptor', '')]
+    ]
+    
+    # Crear filas de productos dinámicamente
+    productos_rows = [["ClProdServ", "NoIdent", "Cantidad", "Clv. Unidad", "Unidad", "Descripción", "Valor Unitario", "Descuento", "Importe"]]
+    for producto in productos:
+        fila = [
+            producto.get('clave_producto', ''),
+            '',  # NoIdent
+            str(producto.get('cantidad', 0)),
+            '',  # Clv. Unidad
+            producto.get('unidad', ''),
+            producto.get('descripcion', ''),
+            f"{producto.get('valor_unitario', 0):.2f}",
+            f"{producto.get('descuento', 0):.2f}",
+            f"{producto.get('importe', 0):.2f}"
+        ]
+        productos_rows.append(fila)
+    
+    
+    #Construir el PDF
+    doc.build(elements)
+    print(f"PDF generado: factura_{uuid[:8]}.pdf")
+    return emisor_data, documento_data, receptor_data, productos_rows, factura
 
 
 def numero_a_moneda_en_letras(cantidad):
@@ -271,4 +357,7 @@ elements.extend([
 # Construir PDF
 doc.build(elements)
 
-
+if __name__ == "__main__":
+    # Ejemplo de uso - cambia el UUID por uno real de tu base de datos
+    uuid_ejemplo = "02C89887-DB16-4D97-BDDC-EA90B0A333C9"
+    crear_pdf_factura(uuid_ejemplo)
