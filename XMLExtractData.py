@@ -100,32 +100,32 @@ def extract_xml_data(xml_path):
                 importe = float(traslado.get("Importe", "0"))
 
                 if impuesto == "002":  # IVA
-                    iva_trasladado = importe
+                    iva_trasladado += importe
                 elif impuesto == "003":  # IEPS
-                    ieps_trasladado = importe
+                    ieps_trasladado += importe
 
                     tasa = float(traslado.get("TasaOCuota", "0"))
                     tasa_porcentaje = tasa*100
 
                     # Mapear según el porcentaje
                     if tasa_porcentaje == 3:
-                        ieps_porcentajes["IEPS3"] = importe
+                        ieps_porcentajes["IEPS3"] += importe
                     elif tasa_porcentaje == 6:
-                        ieps_porcentajes["IEPS6"] = importe
+                        ieps_porcentajes["IEPS6"] += importe
                     elif tasa_porcentaje == 7:
-                        ieps_porcentajes["IEPS7"] = importe
+                        ieps_porcentajes["IEPS7"] += importe
                     elif tasa_porcentaje == 8:
-                        ieps_porcentajes["IEPS8"] = importe
+                        ieps_porcentajes["IEPS8"] += importe
                     elif tasa_porcentaje == 9:
-                        ieps_porcentajes["IEPS9"] = importe
+                        ieps_porcentajes["IEPS9"] += importe
                     elif tasa_porcentaje == 26.5:
-                        ieps_porcentajes["IEPS265"] = importe
+                        ieps_porcentajes["IEPS265"] += importe
                     elif tasa_porcentaje == 30:
-                        ieps_porcentajes["IEPS30"] = importe
+                        ieps_porcentajes["IEPS30"] += importe
                     elif tasa_porcentaje == 53:
-                        ieps_porcentajes["IEPS53"] = importe
+                        ieps_porcentajes["IEPS53"] += importe
                     elif tasa_porcentaje == 160:
-                        ieps_porcentajes["IEPS160"] = importe
+                        ieps_porcentajes["IEPS160"] += importe
 
             # Obtener retenciones de IVA (si existen en el nodo principal)
             retenciones_nodes = impuestos_node.findall('./cfdi:Retenciones/cfdi:Retencion', ns)

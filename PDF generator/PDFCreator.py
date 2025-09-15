@@ -5,6 +5,8 @@ from reportlab.lib.colors import Color
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.utils import ImageReader
+from io import BytesIO
 from num2words import num2words
 import qrcode
 
@@ -186,12 +188,21 @@ tabla4 = Table([
 ], colWidths=[270, 270])
 tabla4.setStyle(estilo_externa)
 
-# Crear imagen QR
-qr = qrcode.make("https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx")
-qr.save("qr.png")
+# Crear QR en memoria
+qr = qrcode.QRCode()
+qr.add_data("https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx")
+qr.make()
 
-# Cargar imagen
-qr_img = Image("qr.png", width=30*mm, height=30*mm)
+# Convertir a imagen PIL
+qr_pil = qr.make_image()
+
+# Convertir a BytesIO para ReportLab
+qr_buffer = BytesIO()
+qr_pil.save(qr_buffer, format='PNG')
+qr_buffer.seek(0)
+
+# Usar con ReportLab
+qr_img = Image(qr_buffer, width=30*mm, height=30*mm)
 
 
 # Datos de la tabla

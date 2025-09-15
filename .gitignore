@@ -1,8 +1,9 @@
 facturas_ejemplo.sqbpro
-testXML.xml
-mi_base.db
 Pruebas.py
-facturas_ejemplo.db
-variosProductos.xml
-UUIDRelacion.xml
+*.db
 retenidoIVA.XML
+*.pdf
+*.ico
+*.png
+*.xml
+*.pptx
