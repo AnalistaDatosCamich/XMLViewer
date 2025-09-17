@@ -592,7 +592,7 @@ class XMLViewerApp(ctk.CTk):
                     directorio_original = os.getcwd()
                     os.chdir(carpeta_destino)
                     
-                    crear_pdf_factura(uuid)
+                    crear_pdf_factura(uuid, self.current_db_path)
                     
                     # Restaurar directorio
                     os.chdir(directorio_original)

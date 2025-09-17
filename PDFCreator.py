@@ -11,9 +11,9 @@ from num2words import num2words
 import qrcode
 import sqlite3 
 
-def obtener_factura_por_uuid(uuid):
+def obtener_factura_por_uuid(uuid, db_path = "mi_base.db"):
     """"Obtiene datos de una factura específica por su UUID"""
-    conn = sqlite3.connect("mi_base.db")
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM facturas WHERE UUID1 = ?", (uuid,))
@@ -29,9 +29,9 @@ def obtener_factura_por_uuid(uuid):
     return factura_dict
 
 
-def obtener_productos_por_uuid(uuid):
+def obtener_productos_por_uuid(uuid, db_path = "mi_base.db"):
     """"Obtiene datos de una factura específica por UUID"""
-    conn = sqlite3.connect("mi_base.db")
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM productos WHERE uuid_factura = ?", (uuid,))
@@ -44,10 +44,10 @@ def obtener_productos_por_uuid(uuid):
     conn.close()
     return productos_list
 
-def crear_pdf_factura(uuid):
+def crear_pdf_factura(uuid, db_path = "mi_base.db"):
     """Crea PDF con datos reales de la base de datos"""
-    factura = obtener_factura_por_uuid(uuid)
-    productos = obtener_productos_por_uuid(uuid)
+    factura = obtener_factura_por_uuid(uuid, db_path)
+    productos = obtener_productos_por_uuid(uuid, db_path)
     
     if not factura:
         print(f"No se encontró factura con UUID: {uuid}")
@@ -63,9 +63,9 @@ def crear_pdf_factura(uuid):
     styles = getSampleStyleSheet()
     
     # Estilos y configuraciones
-    azul_marino = Color(0.0, 87/255, 1)
+    azul_claro = colors.HexColor("#739ef3")
     estilo_producto = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4382ff")),
+        ('BACKGROUND', (0, 0), (-1, 0), azul_claro),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
@@ -81,7 +81,7 @@ def crear_pdf_factura(uuid):
     ])
 
     estilo_externa = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4382ff")),
+        ('BACKGROUND', (0, 0), (-1, 0), azul_claro),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 1), (-1, -1), 'TOP'),
@@ -98,7 +98,7 @@ def crear_pdf_factura(uuid):
         ["RFC:", factura.get('RFCEmisor', '')],
         ["Regimen Fiscal:", factura.get('RegimenFiscal', '')],
         ["No. certificado digital:", factura.get('NoCertificado', '')],
-        ["Folio Fiscal", factura.get('UUID1', '')]
+        ["Folio Fiscal:", factura.get('UUID1', '')]
     ]
 
     emisor_procesado = []
