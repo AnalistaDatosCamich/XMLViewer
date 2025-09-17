@@ -8,3 +8,6 @@ retenidoIVA.XML
 *.xml
 *.pptx
 *.spec
+.idea
+build
+__pycache__
