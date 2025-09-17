@@ -363,10 +363,10 @@ def create_second_table_from_first(connection, source_table='facturas', target_t
     finally:
         cursor.close()
 
-def extract_products_from_xml(xml_path):
+def extract_products_from_xml(folder_path):
     """Extrae productos de un XML específico"""
     try:
-        tree = etree.parse(xml_path)
+        tree = etree.parse(folder_path)
         root = tree.getroot()
         
         ns = {
@@ -398,10 +398,10 @@ def extract_products_from_xml(xml_path):
         
         return productos
     except Exception as e:
-        print(f"Error extracting products from {xml_path}: {e}")
+        print(f"Error extracting products from {folder_path}: {e}")
         return []
 
-def create_products_table(connection):
+def create_products_table(connection, folder_path):
     """Crea tabla de productos y la llena con datos de todos los XMLs"""
     cursor = connection.cursor()
     
@@ -427,7 +427,6 @@ def create_products_table(connection):
         cursor.execute('DELETE FROM productos')
         
         # Obtener todos los archivos XML de la carpeta
-        folder_path = "C://AdminXML//BovedaCFDi//CLE230712B31//Recibidas//2025//12. DICIEMBRE 2024//12 todo dic"
         pattern = os.path.join(folder_path, "*.xml")
         xml_files = glob.glob(pattern)
         

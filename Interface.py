@@ -136,7 +136,8 @@ class XMLViewerApp(ctk.CTk):
 
         self.export_to_pdf = ctk.CTkButton(
             self.export_utilities,
-            text="Exportar selección a PDF"
+            text="Exportar selección a PDF",
+            command = self.exportar_pdfs_seleccionados
         )
         self.export_to_pdf.grid(row=0, column=1, pady=10, padx=5, sticky="ew")
 
@@ -185,7 +186,7 @@ class XMLViewerApp(ctk.CTk):
     # FUNCIONES COMENTADAS DEL SELECTOR DE CARPETA ORIGINAL
     def select_folder(self):
         #"""Open folder dialog and process XML files"""
-        from XMLExtractData import process_xml_folder, create_second_table_from_first, get_resource_path
+        from XMLExtractData import process_xml_folder, create_second_table_from_first, create_products_table, get_resource_path
         folder_path = filedialog.askdirectory(
             title="Seleccionar carpeta con archivos XML"
         )
@@ -205,6 +206,7 @@ class XMLViewerApp(ctk.CTk):
                 if success:
                     # Crear tabla XMLDATA
                     create_second_table_from_first(conn)
+                    create_products_table(conn, folder_path)
                     conn.close()
                     
                     # Cargar los datos procesados
@@ -554,6 +556,69 @@ class XMLViewerApp(ctk.CTk):
             self.status_label.configure(text=f"{total} registros")
         else:
             self.status_label.configure(text=f"{mostrados}/{total} registros")
+
+    def exportar_pdfs_seleccionados(self):
+        """Exportar PDFs de las facturas seleccionadas"""
+        seleccionados = self.obtener_seleccionados()
+        if not seleccionados:
+            messagebox.showwarning("Advertencia", "No hay facturas seleccionadas")
+            return
+        
+        # Seleccionar carpeta destino
+        carpeta_destino = filedialog.askdirectory(title="Seleccionar carpeta para guardar PDFs")
+        if not carpeta_destino:
+            return
+        
+        try:
+            from PDFCreator import crear_pdf_factura
+            
+            exitosos = 0
+            errores = 0
+            
+            # Obtener índice de la columna UUID
+            cursor = self.db_connection.cursor()
+            columnas = [desc[0] for desc in cursor.execute("SELECT * FROM XMLDATA LIMIT 0").description]
+            uuid_idx = columnas.index("UUID")
+            
+            self.status_label.configure(text=f"Generando {len(seleccionados)} PDFs...")
+            self.update()
+            
+            for i, fila in enumerate(seleccionados):
+                try:
+                    uuid = fila[uuid_idx]
+                    
+                    # Cambiar directorio de trabajo temporalmente
+                    import os
+                    directorio_original = os.getcwd()
+                    os.chdir(carpeta_destino)
+                    
+                    crear_pdf_factura(uuid)
+                    
+                    # Restaurar directorio
+                    os.chdir(directorio_original)
+                    
+                    exitosos += 1
+                    
+                    # Actualizar progreso
+                    self.status_label.configure(text=f"Generando PDFs... {i+1}/{len(seleccionados)}")
+                    self.update()
+                    
+                except Exception as e:
+                    errores += 1
+                    print(f"Error generando PDF para UUID {uuid}: {e}")
+            
+            # Mensaje final
+            mensaje = f"PDFs generados: {exitosos}"
+            if errores > 0:
+                mensaje += f"\nErrores: {errores}"
+            
+            messagebox.showinfo("Completado", mensaje)
+            self.status_label.configure(text=f"{exitosos} PDFs generados")
+            
+        except ImportError:
+            messagebox.showerror("Error", "No se pudo importar PDFCreator")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error generando PDFs:\n{str(e)}")
 
 
 if __name__ == "__main__":
