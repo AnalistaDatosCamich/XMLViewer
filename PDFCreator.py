@@ -154,22 +154,26 @@ def crear_pdf_factura(uuid, db_path = "mi_base.db"):
 
     # 3. Tabla de Productos
     productos_data = [["Cód. SAT", "NoIdent", "Cantidad", "Clv. Unidad", "Unidad", "Descripción", "Valor Unitario", "Descuento", "Importe"]]
-    
+    cell_style = ParagraphStyle("CellStyle", fontSize=7, leading = 10, wordWrap= "CJK")
+
     for producto in productos:
+        noident = producto.get('noIdent', "")
+        descripcion = producto.get("descripcion", '')
+
         fila = [
             producto.get('clave_producto', ''),
-            "",  # NoIdent
+            Paragraph(noident, cell_style) if noident else '',
             str(producto.get('cantidad', 0)),
             producto.get("clave_unidad",""),  # Clv. Unidad  
             producto.get('unidad', ''),
-            producto.get('descripcion', ''),
+            Paragraph(descripcion, cell_style) if noident else '',
             f"{producto.get('valor_unitario', 0):.2f}",
             f"{producto.get('descuento', 0):.2f}",
             f"{producto.get('importe', 0):.2f}"
         ]
         productos_data.append(fila)
 
-    tabla3 = Table(productos_data, colWidths=[40, 35, 35, 40, 30, 175, 50, 45, 50])
+    tabla3 = Table(productos_data, colWidths=[40, 70, 35, 40, 30, 175, 50, 45, 50])
     tabla3.setStyle(estilo_producto)
 
     # Importe en letras

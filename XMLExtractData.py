@@ -386,6 +386,7 @@ def extract_products_from_xml(folder_path):
             producto = {
                 'uuid_factura': uuid,
                 'clave_producto': concepto.get('ClaveProdServ', ''),
+                'noIdent': concepto.get('NoIdentificacion',''),
                 'descripcion': concepto.get('Descripcion', ''),
                 'cantidad': float(concepto.get('Cantidad', 0)),
                 'clave_unidad':concepto.get('ClaveUnidad', ''),
@@ -412,6 +413,7 @@ def create_products_table(connection, folder_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             uuid_factura TEXT,
             clave_producto TEXT,
+            noIdent TEXT,
             descripcion TEXT,
             cantidad REAL,
             clave_unidad TEXT,
@@ -435,8 +437,8 @@ def create_products_table(connection, folder_path):
             productos = extract_products_from_xml(xml_file)
             for producto in productos:
                 cursor.execute('''
-                INSERT INTO productos (uuid_factura, clave_producto, descripcion, cantidad, clave_unidad, unidad, valor_unitario, importe, descuento)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
+                INSERT INTO productos (uuid_factura, clave_producto, noIdent, descripcion, cantidad, clave_unidad, unidad, valor_unitario, importe, descuento)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?)
                 ''', tuple(producto.values()))
                 total_productos += 1
         
