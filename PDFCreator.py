@@ -157,13 +157,13 @@ def crear_pdf_factura(uuid, db_path = "mi_base.db"):
     cell_style = ParagraphStyle("CellStyle", fontSize=7, leading = 10, wordWrap= "CJK")
 
     for producto in productos:
-        noident = producto.get('noIdent', "")
+        noident = producto.get('noIdent', 0)
         descripcion = producto.get("descripcion", '')
 
         fila = [
             producto.get('clave_producto', ''),
             Paragraph(noident, cell_style) if noident else '',
-            str(producto.get('cantidad', 0)),
+            f"{(producto.get('cantidad', 0)):.2f}",
             producto.get("clave_unidad",""),  # Clv. Unidad  
             producto.get('unidad', ''),
             Paragraph(descripcion, cell_style) if noident else '',
